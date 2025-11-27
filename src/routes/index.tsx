@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import logo from '../logo.svg'
-import { client, storage, account, ID } from '@/lib/appwrite'
+import { storage, account, ID } from '@/lib/appwrite'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,9 +13,9 @@ export const Route = createFileRoute('/')({
 
 function App() {
   const { user, loading, logout } = useAuth()
-  const [files, setFiles] = useState([])
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [profileFile, setProfileFile] = useState(null)
+  const [files, setFiles] = useState<any[]>([])
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [profileFile, setProfileFile] = useState<File | null>(null)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
 
   const bucketId = import.meta.env.VITE_APPWRITE_BUCKET_ID || 'media'
@@ -41,7 +41,7 @@ function App() {
   async function loadFiles() {
     try {
       const response = await storage.listFiles(bucketId)
-      setFiles(response.files)
+      setFiles(response.files || [])
     } catch (e) {
       console.error('Failed to load files:', e)
     }
@@ -58,7 +58,7 @@ function App() {
     }
   }
 
-  async function deleteFile(fileId) {
+  async function deleteFile(fileId: string) {
     try {
       await storage.deleteFile(bucketId, fileId)
       loadFiles()
@@ -179,7 +179,9 @@ function App() {
                   <Input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setProfileFile(e.target.files[0])}
+                    onChange={(e) =>
+                      setProfileFile(e.target.files?.[0] || null)
+                    }
                     className="flex-1"
                   />
                   <Button onClick={uploadProfilePhoto} disabled={!profileFile}>
@@ -216,7 +218,9 @@ function App() {
                   <div className="flex items-center space-x-4">
                     <Input
                       type="file"
-                      onChange={(e) => setSelectedFile(e.target.files[0])}
+                      onChange={(e) =>
+                        setSelectedFile(e.target.files?.[0] || null)
+                      }
                       className="flex-1"
                     />
                     <Button onClick={uploadFile} disabled={!selectedFile}>
@@ -245,7 +249,9 @@ function App() {
                               {file.name}
                             </p>
                             <p className="text-xs text-gray-500 mt-1">
-                              {(file.sizeOriginal / 1024).toFixed(1) + ' KB'}
+                              {file.size
+                                ? (file.size / 1024).toFixed(1) + ' KB'
+                                : 'Unknown size'}
                             </p>
                             <Button
                               onClick={() => deleteFile(file.$id)}
