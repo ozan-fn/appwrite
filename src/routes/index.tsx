@@ -6,6 +6,13 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'
 
 export const Route = createFileRoute('/')({
   component: App,
@@ -17,6 +24,8 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [profileFile, setProfileFile] = useState<File | null>(null)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
+  const [previewFile, setPreviewFile] = useState<any>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const bucketId = import.meta.env.VITE_APPWRITE_BUCKET_ID || 'media'
 
@@ -253,14 +262,27 @@ function App() {
                                 ? (file.size / 1024).toFixed(1) + ' KB'
                                 : 'Unknown size'}
                             </p>
-                            <Button
-                              onClick={() => deleteFile(file.$id)}
-                              variant="destructive"
-                              size="sm"
-                              className="mt-2 w-full"
-                            >
-                              Delete
-                            </Button>
+                            <div className="flex space-x-2 mt-2">
+                              <Button
+                                onClick={() => {
+                                  setPreviewFile(file)
+                                  setPreviewOpen(true)
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="flex-1"
+                              >
+                                Preview
+                              </Button>
+                              <Button
+                                onClick={() => deleteFile(file.$id)}
+                                variant="destructive"
+                                size="sm"
+                                className="flex-1"
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -274,6 +296,36 @@ function App() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* File Preview Dialog */}
+            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+              <DialogContent className="max-w-4xl flex flex-col  max-h-[80vh]">
+                <DialogHeader>
+                  <DialogTitle>{previewFile?.name}</DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 flex min-h-[400px] overflow-auto">
+                  {previewFile && (
+                    <DocViewer
+                      documents={[
+                        {
+                          uri: storage.getFileView(bucketId, previewFile.$id),
+                          fileName: previewFile.name,
+                          fileType: previewFile.mimeType,
+                        },
+                      ]}
+                      pluginRenderers={DocViewerRenderers}
+                      config={{
+                        header: {
+                          disableHeader: true,
+                          disableFileName: true,
+                        },
+                      }}
+                      className="flex-1 object-cover"
+                    />
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         ) : (
           <div className="text-center py-12">
