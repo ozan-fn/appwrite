@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Progress } from '@/components/ui/progress'
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'
 
 export const Route = createFileRoute('/')({
@@ -26,6 +27,8 @@ function App() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
   const [previewFile, setPreviewFile] = useState<any>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [profileUploadProgress, setProfileUploadProgress] = useState(0)
 
   const bucketId = import.meta.env.VITE_APPWRITE_BUCKET_ID || 'media'
 
@@ -59,11 +62,22 @@ function App() {
   async function uploadFile() {
     if (!selectedFile) return
     try {
-      await storage.createFile(bucketId, ID.unique(), selectedFile)
+      setUploadProgress(0)
+      await storage.createFile(
+        bucketId,
+        ID.unique(),
+        selectedFile,
+        [],
+        (progress) => {
+          setUploadProgress(progress.progress)
+        },
+      )
       loadFiles()
       setSelectedFile(null)
+      setUploadProgress(0)
     } catch (e) {
       console.error('Failed to upload file:', e)
+      setUploadProgress(0)
     }
   }
 
@@ -79,12 +93,23 @@ function App() {
   async function uploadProfilePhoto() {
     if (!profileFile) return
     try {
-      const file = await storage.createFile(bucketId, ID.unique(), profileFile)
+      setProfileUploadProgress(0)
+      const file = await storage.createFile(
+        bucketId,
+        ID.unique(),
+        profileFile,
+        [],
+        (progress) => {
+          setProfileUploadProgress(progress.progress)
+        },
+      )
       await account.updatePrefs({ profilePhotoId: file.$id })
       setProfilePhotoUrl(storage.getFileView(bucketId, file.$id))
       setProfileFile(null)
+      setProfileUploadProgress(0)
     } catch (e) {
       console.error('Failed to upload profile photo:', e)
+      setProfileUploadProgress(0)
     }
   }
 
@@ -184,18 +209,31 @@ function App() {
                     <p className="text-sm text-gray-500">{user?.email}</p>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center space-x-2">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      setProfileFile(e.target.files?.[0] || null)
-                    }
-                    className="flex-1"
-                  />
-                  <Button onClick={uploadProfilePhoto} disabled={!profileFile}>
-                    Upload Photo
-                  </Button>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        setProfileFile(e.target.files?.[0] || null)
+                      }
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={uploadProfilePhoto}
+                      disabled={!profileFile || profileUploadProgress > 0}
+                    >
+                      {profileUploadProgress > 0
+                        ? 'Uploading...'
+                        : 'Upload Photo'}
+                    </Button>
+                  </div>
+                  {profileUploadProgress > 0 && (
+                    <Progress
+                      value={profileUploadProgress}
+                      className="w-full"
+                    />
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -224,17 +262,25 @@ function App() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <Input
-                      type="file"
-                      onChange={(e) =>
-                        setSelectedFile(e.target.files?.[0] || null)
-                      }
-                      className="flex-1"
-                    />
-                    <Button onClick={uploadFile} disabled={!selectedFile}>
-                      Upload File
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-4">
+                      <Input
+                        type="file"
+                        onChange={(e) =>
+                          setSelectedFile(e.target.files?.[0] || null)
+                        }
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={uploadFile}
+                        disabled={!selectedFile || uploadProgress > 0}
+                      >
+                        {uploadProgress > 0 ? 'Uploading...' : 'Upload File'}
+                      </Button>
+                    </div>
+                    {uploadProgress > 0 && (
+                      <Progress value={uploadProgress} className="w-full" />
+                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {files.map((file) => (
